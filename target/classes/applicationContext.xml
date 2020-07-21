@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/context
+                           http://www.springframework.org/schema/context/spring-context.xsd
+                           http://www.springframework.org/schema/tx
+                           http://www.springframework.org/schema/tx/spring-tx.xsd
+                           http://www.springframework.org/schema/aop
+                           http://www.springframework.org/schema/aop/spring-aop.xsd">
+<!--    配置注解扫描,作用于Service和Mapper-->
+    <context:component-scan base-package="com.kanouakira">
+<!--        controller的注解扫描交给mvc配置文件-->
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+
+<!--    载入jdbc配置文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+<!--    配置c3p0数据源-->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="${jdbc.driver}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+
+<!--    整合mybatis配置SqlSessionFactoryBean-->
+    <bean class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:sqlMapConfig.xml"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.kanouakira.mapper"></property>
+    </bean>
+
+<!--    声明式事务-->
+<!--    事务平台管理器-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+<!--    事务切面-->
+    <tx:advice id="txAdvice">
+        <tx:attributes>
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+<!--    aop织入事务-->
+    <aop:config>
+        <aop:advisor advice-ref="txAdvice" pointcut="execution(* com.kanouakira.service.*.*(..))"/>
+    </aop:config>
+
+<!--    aop织入切面-->
+    <aop:config>
+<!--        抽取业务层的pointcut-->
+        <aop:pointcut id="servicePointCut" expression="execution(* com.kanouakira.service.*.*(..))"/>
+<!--        切面 = 切点 + 通知-->
+        <aop:aspect ref="myAspect">
+            <aop:before method="before" pointcut-ref="servicePointCut"/>
+            <aop:around method="around" pointcut-ref="servicePointCut"/>
+        </aop:aspect>
+    </aop:config>
+
+
+</beans>
